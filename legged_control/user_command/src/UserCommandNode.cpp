@@ -54,7 +54,9 @@ int main(int argc, char* argv[]) {
   // std::cerr << "Loading gait file: " << gaitCommandFile << std::endl;
   GaitKeyboardPublisher gaitCommand(node, gaitCommandFile, robotName, true);
 
-  const ocs2::scalar_array_t relativeBaseLimit{10.0, 10.0, 0.2, 360.0};
+  // Command limits: [dX, dY, dZ, dYaw, dPitch, dRoll].
+  // XYZ in m, angles in deg. dPitch/dRoll added for stance body-posture control (Method A).
+  const ocs2::scalar_array_t relativeBaseLimit{10.0, 10.0, 0.2, 360.0, 45.0, 45.0};
   // const std::string referenceFile = "/home/zhx/Desktop/zhx_legged_ocs2_ros2/src/legged_control/user_command/config/a1/reference.info";
   const std::string referenceFile =
       node->get_parameter("referenceFile").as_string();
@@ -64,7 +66,9 @@ int main(int argc, char* argv[]) {
   const std::string commadMsg =
     "Enter 'gait:xxx' for the desired gait,\n"
     "Enter 'gait:list' for the list of available gaits,\n"
-    "Enter 'goal:x x x x' for the desired goal,Enter XYZ and Yaw (deg) displacements, separated by spaces.\n";
+    "Enter 'goal:x y z yaw pitch roll' for the desired body pose,\n"
+    "  XYZ in m, Yaw/Pitch/Roll in deg, all relative to the current pose (space-separated).\n"
+    "  Pitch/Roll are intended for the 'stance' gait (body-posture control).\n";
     
   while (rclcpp::ok()) {
     std::cout << commadMsg << ": ";

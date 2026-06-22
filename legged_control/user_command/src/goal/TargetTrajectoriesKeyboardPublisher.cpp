@@ -256,7 +256,7 @@ ocs2::scalar_t TargetTrajectoriesKeyboardPublisher::estimateTimeToTarget(const o
 
 /**
  * Converts command line to TargetTrajectories.
- * @param [in] commadLineTarget : [deltaX, deltaY, deltaZ, deltaYaw]
+ * @param [in] commadLineTarget : [deltaX, deltaY, deltaZ, deltaYaw, deltaPitch, deltaRoll]
  * @param [in] observation : the current observation
  */
 ocs2::TargetTrajectories TargetTrajectoriesKeyboardPublisher::commandLineToTargetTrajectories(
@@ -272,9 +272,11 @@ ocs2::TargetTrajectories TargetTrajectoriesKeyboardPublisher::commandLineToTarge
     target(2) = comHeight_ + commadLineTarget(2);
     // theta_z relative to current
     target(3) = currentPose(3) + commadLineTarget(3) * M_PI / 180.0;
-    // theta_y, theta_x
-    target(4) = currentPose(4);
-    target(5) = currentPose(5);
+    // theta_y (pitch), theta_x (roll): relative to current, command given in degrees.
+    // Enables body-posture control in stance (Method A). Defaults to 0 when omitted,
+    // so the legacy 4-value 'goal:x y z yaw' command keeps holding the current tilt.
+    target(4) = currentPose(4) + commadLineTarget(4) * M_PI / 180.0;
+    target(5) = currentPose(5) + commadLineTarget(5) * M_PI / 180.0;
     return target;
   }();
   
