@@ -80,7 +80,18 @@ void MujocoSimulation::loadModel(const std::string& modelPath, const std::string
 
     data_ = mj_makeData(model_);
 
-    mjv_makeScene(model_, &scene_, 2000); 
+    // Initialize the robot at its nominal standing keyframe (if present) so it does not
+    // free-fall before the controller engages.
+    if (model_->nkey > 0) {
+        mj_resetDataKeyframe(model_, data_, 0);
+    }
+    mj_forward(model_, data_);
+    // Store the standing joint angles so they can be held until control starts.
+    for (int i = 0; i < 12; ++i) {
+        init_joint_pos_[i] = data_->sensordata[i + 10];
+    }
+
+    mjv_makeScene(model_, &scene_, 2000);
     // Create MuJoCo context for rendering
     mjr_makeContext(model_, &context_, mjFONTSCALE_150);
 
@@ -264,6 +275,16 @@ void MujocoSimulation::simulateStep() {
                 Kd_ * (static_cast<double>(Joint_velocity_[i]) - joint_velocity_value[i]);
             data_->ctrl[i] = control_torque[i];
             //std::cout << "data_->ctrl[" << i << "] = " << data_->ctrl[i] << std::endl;
+        }
+    }
+    else
+    {
+        // Before control starts, hold the nominal standing posture so the robot does not
+        // collapse during controller startup (CppAd loading, launch delay, etc.).
+        for (int i = 0; i < 12; ++i) {
+            const double pos = data_->sensordata[i+10];
+            const double vel = data_->sensordata[i+22];
+            data_->ctrl[i] = Kp_ * (init_joint_pos_[i] - pos) + Kd_ * (0.0 - vel);
         }
     }
     // Perform a simulation step

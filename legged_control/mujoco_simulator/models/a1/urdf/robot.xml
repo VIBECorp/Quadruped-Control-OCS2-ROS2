@@ -175,5 +175,11 @@
     <motor name="RH_HFE" joint="RH_HFE" gear="1" ctrlrange="-93.33 93.33" ctrllimited="true"/>
     <motor name="RH_KFE" joint="RH_KFE" gear="1" ctrlrange="-140 140" ctrllimited="true"/>  
   </actuator>
-  
+
+  <keyframe>
+    <!-- nominal standing posture: base at 0.3314 m (feet on ground) with default joint angles.
+         joint order matches model body order: RF, LF, RH, LH (each HAA, HFE, KFE) -->
+    <key name="home" qpos="0 0 0.3314 1 0 0 0  0.2 0.72 -1.44  -0.2 0.72 -1.44  0.2 0.72 -1.44  -0.2 0.72 -1.44"/>
+  </keyframe>
+
 </mujoco>

@@ -33,12 +33,27 @@ ocs2::vector_t WeightedWbc::update(const ocs2::vector_t& stateDesired, const ocs
   options.printLevel = qpOASES::PL_LOW;
   options.enableEqualities = qpOASES::BT_TRUE;
   qpProblem.setOptions(options);
-  int nWsr = 20;
+  // qpOASES needs roughly as many working-set recalculations as there are constraints to
+  // converge from a cold start; 20 is far too few here (>50 constraints) and makes init()
+  // bail out with RET_MAX_NWSR_REACHED, returning a non-converged (unsafe) solution.
+  int nWsr = 100;
 
-  qpProblem.init(H.data(), g.data(), A.data(), nullptr, nullptr, lbA.data(), ubA.data(), nWsr);
+  const qpOASES::returnValue status =
+      qpProblem.init(H.data(), g.data(), A.data(), nullptr, nullptr, lbA.data(), ubA.data(), nWsr);
+
   ocs2::vector_t qpSol(getNumDecisionVars());
-
-  qpProblem.getPrimalSolution(qpSol.data());
+  if (status == qpOASES::SUCCESSFUL_RETURN && qpProblem.isSolved()) {
+    qpProblem.getPrimalSolution(qpSol.data());
+    lastSolution_ = qpSol;
+  } else {
+    // Solver failed/did not converge: reuse the last good solution instead of an unconverged
+    // one to avoid commanding wild torques. Falls back to zeros only on the very first failure.
+    if (lastSolution_.size() == static_cast<Eigen::Index>(getNumDecisionVars())) {
+      qpSol = lastSolution_;
+    } else {
+      qpSol.setZero();
+    }
+  }
   return qpSol;
 }
 

@@ -16,4 +16,5 @@ class WeightedWbc : public WbcBase {
 
  private:
   ocs2::scalar_t weightSwingLeg_, weightBaseAccel_, weightContactForce_;
+  ocs2::vector_t lastSolution_;  // last successful QP solution, used as fallback on solver failure
 };

@@ -58,6 +58,11 @@ MPC_WBC_ROS_Interface::MPC_WBC_ROS_Interface(const rclcpp::Node::SharedPtr& node
   //legged_interface
   leggedInterface_ = std::make_shared<LeggedRobotInterface>(taskFile, urdfFile, referenceFile);
 
+  // Nominal standing reference (used to command an explicit stand-up target at startup).
+  defaultJointState_.resize(12);
+  ocs2::loadData::loadCppDataType(referenceFile, "comHeight", comHeight_);
+  ocs2::loadData::loadEigenMatrix(referenceFile, "defaultJointState", defaultJointState_);
+
   // mpc
   ocs2::loadData::loadCppDataType(simulatorFile, "controller.mpc_control_frequency", Mpc_control_frequency_);
   setupMpc(robotName);
@@ -186,7 +191,28 @@ void MPC_WBC_ROS_Interface::simulatorStartControlLoop()
     auto state = response->state;
     
     setInitialState(std::make_shared<const legged_msgs::msg::SimulatorStateData>(state));
-    ocs2::TargetTrajectories target_trajectories({currentObservation_.time}, {currentObservation_.state}, {currentObservation_.input});
+
+    // Command an explicit standing target at startup (equivalent to a "goal:0 0 0 0" command):
+    // base at the nominal comHeight with level orientation and default joint angles. A single-point
+    // target equal to the measured state is not tracked reliably by the solver and the robot sags;
+    // a proper two-point ramp to the nominal stance makes the MPC actively hold itself up.
+    const ocs2::vector_t currentPose = currentObservation_.state.segment<6>(6);
+    ocs2::vector_t targetPose(6);
+    targetPose << currentPose(0), currentPose(1), comHeight_, currentPose(3), 0.0, 0.0;
+
+    const size_t stateDim = currentObservation_.state.size();
+    ocs2::vector_t startState = ocs2::vector_t::Zero(stateDim);
+    startState.segment<6>(6) = currentPose;
+    startState.segment(12, 12) = defaultJointState_;
+    ocs2::vector_t targetState = ocs2::vector_t::Zero(stateDim);
+    targetState.segment<6>(6) = targetPose;
+    targetState.segment(12, 12) = defaultJointState_;
+
+    const ocs2::TargetTrajectories target_trajectories(
+        {currentObservation_.time, currentObservation_.time + 1.0},
+        {startState, targetState},
+        {currentObservation_.input, currentObservation_.input});
+
     mpcMrtInterface_->setCurrentObservation(currentObservation_);
     mpcMrtInterface_->getReferenceManager().setTargetTrajectories(target_trajectories);
     RCLCPP_INFO(node_->get_logger(),"Waiting for the initial policy ...");
@@ -195,6 +221,16 @@ void MPC_WBC_ROS_Interface::simulatorStartControlLoop()
       rclcpp::WallRate(leggedInterface_->mpcSettings().mrtDesiredFrequency_).sleep();
     }
     RCLCPP_INFO(node_->get_logger(),"Initial policy has been received.");
+
+    // Warm up the MPC at the initial standing state. With sqpIteration=1 the first cold-start
+    // solve is poorly converged, so the very first commanded posture sags. Iterating the MPC at
+    // the fixed initial observation lets the SQP warm-start and converge to a proper standing
+    // plan before control engages.
+    for (int i = 0; i < 50 && rclcpp::ok(); ++i) {
+      mpcMrtInterface_->setCurrentObservation(currentObservation_);
+      mpcMrtInterface_->advanceMpc();
+    }
+    RCLCPP_INFO(node_->get_logger(),"MPC warm-up finished.");
 
     mpcMrtInterface_->updatePolicy();
     // Evaluate the current policy

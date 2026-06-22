@@ -77,6 +77,7 @@ private:
     double Joint_position_[12];
     double Joint_velocity_[12];
     double Joint_torque_[12];
+    double init_joint_pos_[12]; // standing joint angles held before control starts
     double timestep_;
     double control_frequency_;
     double Kp_;

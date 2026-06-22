@@ -144,6 +144,8 @@ private:
     ocs2::benchmark::RepeatedTimer wbcTimer_;
     int MpcCount_; // using count to control different frequency of mpc and wbc
     bool StateEstimate_; //use state estimate (true) or use real state from simulator (false)
+    ocs2::scalar_t comHeight_;          // nominal standing base height (from reference file)
+    ocs2::vector_t defaultJointState_;  // nominal standing joint angles (from reference file)
     
 
   /*
