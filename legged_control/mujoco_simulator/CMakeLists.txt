@@ -32,6 +32,12 @@ add_executable(mujoco_simulator src/SimulatorNode.cpp src/MujocoSimulation.cpp)
 ament_target_dependencies(mujoco_simulator rclcpp ament_index_cpp std_msgs legged_msgs ocs2_core Boost) #ros2 link library
 target_link_libraries(mujoco_simulator ${MUJOCO_LIBRARIES} glfw) #cmake link library
 
+# libmujoco.so.3.2.2 lives in the source tree (not a colcon package), so bake its
+# directory into the installed binary's RPATH; otherwise it is not found at runtime.
+set_target_properties(mujoco_simulator PROPERTIES
+  INSTALL_RPATH "${MUJOCO_DIR}/lib"
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 install(TARGETS mujoco_simulator
   DESTINATION lib/${PROJECT_NAME})
 

@@ -1,0 +1,23 @@
+controller
+{
+    timestep  0.001
+    mpc_control_frequency  40
+    wbc_control_frequency  500
+}
+
+render
+{
+  render_appearance true
+  render_inertia false
+  visualize_contacts true
+  tracking_base true
+  render_frequency 200
+}
+
+; Joint-level PD applied by the MuJoCo simulator (sim-only; the real robot uses the
+; bridge's per-motor lowcmd kp/kd). High stiffness for the sim PD around MPC q_des.
+pid
+{
+    kp                   25
+    kd                   2.0
+}
